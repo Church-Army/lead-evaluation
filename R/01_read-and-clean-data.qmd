@@ -1,0 +1,75 @@
+---
+title: "Read & Clean"
+author: "Dave"
+format: html
+editor: visual
+---
+
+```{r setup}
+library(dplyr)
+library(monkeyreadr)
+library(vroom)
+library(here)
+library(fs)
+```
+
+## Read data
+
+```{r read_data}
+module <- read_sm(here("inputs", "module-evaluation.csv"))
+collectors <- vroom(here("inputs", "collector-list.csv"), col_types = "ccc")
+```
+### Rename
+
+```{r rename}
+names(module)[5:15] <- 
+  c("strengths_weaknesses", "how_much_relevant", "feel_more_equipped_to_lead",
+    "action_learning_group", "interested_another_module", "has_changed_leadership",
+    "how_changed_leadership", "given_support_learning_activities", 
+    "anything_else_learning_activities", "helpful_feedback","anything_else")
+```
+
+### Mutate
+
+#### Factors
+
+```{r mutate}
+agrees <- c("Strongly disagree", "Disagree", "Agree", "Strongly agree")
+
+module <- mutate(
+  module, 
+  how_much_relevant = ordered(how_much_relevant, levels = c("Very little", "Some of it", "Most of it", "All of it")), 
+  feel_more_equipped_to_lead = ordered(feel_more_equipped_to_lead,
+                                       levels = agrees),
+  has_changed_leadership = ordered(has_changed_leadership, levels = c("Not really", "Yes, somewhat", "Yes, a great deal")),
+  given_support_learning_activities = ordered(given_support_learning_activities, 
+                                             levels = agrees),
+  interested_another_module = ordered(interested_another_module, levels = c("I have now completed all the LEAD modules", "No", "Not sure", "Yes")),
+  helpful_feedback = replace(helpful_feedback, helpful_feedback == "Aagree", "Agree") |> 
+    ordered(levels = agrees))
+```
+
+#### Logicals
+
+```{r logicals}
+module <- mutate(module, action_learning_group = action_learning_group == "Yes")
+```
+
+### Join collectors
+
+```{r join_colltors}
+names(collectors) <- c("collector_id", "module", "date_created")
+collectors <- select(collectors, -date_created)
+
+module <-
+  left_join(module, collectors, by = "collector_id") |> 
+  relocate(module, .after = collector_id) |> 
+  select(-collector_id)
+```
+
+## Save
+
+```{r save}
+dir_create(here("data"))
+saveRDS(module, here("data", "output-01_cleaned.RDS"))
+```

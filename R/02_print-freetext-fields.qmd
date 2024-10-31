@@ -1,0 +1,52 @@
+---
+title: "Print freetext fields"
+author: "Dave"
+format: html
+editor: visual
+---
+
+## Set up
+
+### Libraries
+
+```{r libraries}
+library(here)
+library(fs)
+library(stringr)
+library(purrr)
+library(dplyr)
+```
+
+### Read data
+
+```{r read_data}
+mod <- readRDS(here("data", "output-01_cleaned.RDS"))
+```
+
+## Select text fields
+
+```{r select_text_fields}
+chrs <- select(mod, strengths_weaknesses, how_changed_leadership)
+```
+
+## Print fields helper
+
+```{r print_fields_helper}
+printo <- function(x, x_nm){
+  x <- x[!is.na(x)]
+  title <- str_c("##", x_nm, sep = " ")
+  
+  bullets <- str_c("*", x, sep = " ", collapse = "\n")
+  
+  str_c(title, bullets, sep = "\n\n")
+}
+
+prints <- imap(chrs, printo)
+
+print <- dir_create(here("prints"))
+
+imap(prints, 
+     \(x, x_nm){
+       writeLines(x, path(print, x_nm, ext = ".txt"))
+     })
+```
